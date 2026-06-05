@@ -1,13 +1,123 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
+-- ZoneHub Universal Loader v2.0.0
 
-local ROUTES = {
-    [7703614594] = "https://api.luarmor.net/files/v4/loaders/1523411624b6ef06d98181675f261623.lua",
-    [9510293839] = "https://api.luarmor.net/files/v4/loaders/f847121be198a3d0202d2129c439223d.lua",
-    [5429450445] = "https://api.luarmor.net/files/v4/loaders/9f6c4915e3a8f70f37846514735f7701.lua",
-    [10016841656] = "https://api.luarmor.net/files/v4/loaders/011bbebb93f439237d9ddaeb5fe6a330.lua",
+if getgenv().ZONEHUB_LOADER_RUNNING == true then
+    local startedAt = getgenv().ZONEHUB_LOADER_STARTED_AT or 0
+    if os.time() - startedAt < 30 then return end
+end
+
+getgenv().ZONEHUB_LOADER_RUNNING = true
+getgenv().ZONEHUB_LOADER_STARTED_AT = os.time()
+
+local HTTP_RETRIES = 5
+local RETRY_DELAY_SEC = 2.0
+
+local GAME_ROUTES = {
+    [7703614594] = {
+        Name = "Garden Tower Defense",
+        Script = "https://api.luarmor.net/files/v4/loaders/1523411624b6ef06d98181675f261623.lua",
+    },
+    [9510293839] = {
+        Name = "Brainrot Heroes",
+        Script = "https://api.luarmor.net/files/v4/loaders/f847121be198a3d0202d2129c439223d.lua",
+    },
+    [5429450445] = {
+        Name = "Siren Head Legacy",
+        Script = "https://api.luarmor.net/files/v4/loaders/9f6c4915e3a8f70f37846514735f7701.lua",
+    },
+    [10016841656] = {
+        Name = "Noob Tower Defense",
+        Script = "https://api.luarmor.net/files/v4/loaders/011bbebb93f439237d9ddaeb5fe6a330.lua",
+    },
 }
 
-local url = ROUTES[game.GameId]
-if not url then return warn("[ZoneHub] Unsupported: " .. game.GameId) end
+local PLACE_ROUTES = {}
 
-loadstring(game:HttpGet(url))()
+-- Tải song song nhiều URL, trả về table results theo thứ tự
+local function fetchParallel(urls)
+    local results = table.create(#urls)
+    local done = 0
+
+    for i, url in urls do
+        task.spawn(function()
+            for attempt = 1, HTTP_RETRIES do
+                local ok, result = pcall(game.HttpGet, game, url)
+                if ok and type(result) == "string" and #result > 50
+                    and not result:find("<!DOCTYPE", 1, true)
+                    and not result:find("<html", 1, true)
+                    and not (result:match("^%s*{") and result:find('"error"', 1, true)) then
+                    results[i] = result
+                    break
+                end
+                if attempt < HTTP_RETRIES then
+                    task.wait(RETRY_DELAY_SEC * attempt + math.random() * 0.8)
+                end
+            end
+            done += 1
+        end)
+    end
+
+    local deadline = os.clock() + 30
+    while done < #urls and os.clock() < deadline do
+        task.wait(0.05)
+    end
+
+    return results
+end
+
+local function waitForGameLoaded()
+    if not game:IsLoaded() then
+        local done = false
+        local conn
+        conn = game.Loaded:Connect(function()
+            done = true
+            conn:Disconnect()
+        end)
+        local start = os.clock()
+        while not done and os.clock() - start < 30 do
+            task.wait(0.1)
+        end
+        if conn then conn:Disconnect() end
+    end
+    task.wait(1.5)
+end
+
+local function run()
+    waitForGameLoaded()
+
+    local route = GAME_ROUTES[tonumber(game.GameId)]
+                or PLACE_ROUTES[tonumber(game.PlaceId)]
+
+    if not route then
+        getgenv().ZONEHUB_LOADER_RUNNING = nil
+        return
+    end
+
+    -- Fetch script + library song song nếu có thêm deps sau này
+    local results = fetchParallel({ route.Script })
+    local source = results[1]
+
+    if not source then
+        getgenv().ZONEHUB_LOADER_RUNNING = nil
+        return
+    end
+
+    local chunk = loadstring(source)
+    if type(chunk) ~= "function" then
+        getgenv().ZONEHUB_LOADER_RUNNING = nil
+        return
+    end
+
+    getgenv().ZONEHUB_LOADER_ACTIVE_ROUTE = {
+        Name = route.Name,
+        LoadedAt = os.time(),
+    }
+
+    local ok = pcall(chunk)
+    getgenv().ZONEHUB_LOADER_RUNNING = nil
+    if ok then
+        getgenv().ZONEHUB_LOADER_LOADED = true
+    end
+end
+
+local ok = pcall(run)
+getgenv().ZONEHUB_LOADER_RUNNING = nil
