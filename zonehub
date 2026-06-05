@@ -1,5 +1,3 @@
--- ZoneHub Universal Loader v2.0.0
-
 if getgenv().ZONEHUB_LOADER_RUNNING == true then
     local startedAt = getgenv().ZONEHUB_LOADER_STARTED_AT or 0
     if os.time() - startedAt < 30 then return end
@@ -31,8 +29,6 @@ local GAME_ROUTES = {
 }
 
 local PLACE_ROUTES = {}
-
--- Tải song song nhiều URL, trả về table results theo thứ tự
 local function fetchParallel(urls)
     local results = table.create(#urls)
     local done = 0
@@ -92,7 +88,6 @@ local function run()
         return
     end
 
-    -- Fetch script + library song song nếu có thêm deps sau này
     local results = fetchParallel({ route.Script })
     local source = results[1]
 
