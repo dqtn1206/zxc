@@ -1,0 +1,69 @@
+if getgenv().KAIKUN_LOADER_LOADED == true then return end
+
+if getgenv().KAIKUN_LOADER_RUNNING == true then
+    local startedAt = getgenv().KAIKUN_LOADER_STARTED_AT or 0
+    if os.time() - startedAt < 30 then return end
+end
+getgenv().KAIKUN_LOADER_RUNNING = true
+getgenv().KAIKUN_LOADER_STARTED_AT = os.time()
+
+local URL = "https://api.luarmor.net/files/v4/loaders/23f5feae3b945e3cff72d44550429969.lua"
+local HTTP_RETRIES = 5
+local RETRY_DELAY_SEC = 2.0
+
+local function waitForGameLoaded()
+    if not game:IsLoaded() then
+        local done = false
+        local conn
+        conn = game.Loaded:Connect(function()
+            done = true
+            if conn then conn:Disconnect() end
+        end)
+        local start = os.clock()
+        while not done and os.clock() - start < 30 do
+            task.wait(0.1)
+        end
+        if conn then conn:Disconnect() end
+    end
+    task.wait(1.5)
+end
+
+local function fetchScript(url)
+    for attempt = 1, HTTP_RETRIES do
+        local ok, result = pcall(game.HttpGet, game, url)
+        if ok and type(result) == "string" and #result > 1000
+            and not result:find("<!DOCTYPE", 1, true)
+            and not result:find("<html", 1, true)
+            and not (result:match("^%s*{") and result:find('"error"', 1, true)) then
+            return result
+        end
+        if attempt < HTTP_RETRIES then
+            task.wait(RETRY_DELAY_SEC * attempt + math.random() * 0.8)
+        end
+    end
+    return nil
+end
+
+local function run()
+    waitForGameLoaded()
+    local source = fetchScript(URL)
+    if not source then
+        warn("[Kaikun] Fetch fail")
+        getgenv().KAIKUN_LOADER_RUNNING = nil
+        return
+    end
+    local chunk = loadstring(source)
+    if type(chunk) ~= "function" then
+        warn("[Kaikun] loadstring fail")
+        getgenv().KAIKUN_LOADER_RUNNING = nil
+        return
+    end
+    local ok = pcall(chunk)
+    if ok then
+        getgenv().KAIKUN_LOADER_LOADED = true
+    end
+    getgenv().KAIKUN_LOADER_RUNNING = nil
+end
+
+pcall(run)
+getgenv().KAIKUN_LOADER_RUNNING = nil
