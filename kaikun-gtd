@@ -4,66 +4,126 @@ if getgenv().KAIKUN_LOADER_RUNNING == true then
     local startedAt = getgenv().KAIKUN_LOADER_STARTED_AT or 0
     if os.time() - startedAt < 30 then return end
 end
+
 getgenv().KAIKUN_LOADER_RUNNING = true
 getgenv().KAIKUN_LOADER_STARTED_AT = os.time()
 
 local URL = "https://api.luarmor.net/files/v4/loaders/23f5feae3b945e3cff72d44550429969.lua"
-local HTTP_RETRIES = 5
-local RETRY_DELAY_SEC = 2.0
+
+local HTTP_RETRIES = 10
+local RETRY_DELAY_SEC = 3
+local AUTO_RETRY_DELAY = 45
+local AUTO_RETRY_LIMIT = 5
+
+getgenv().KAIKUN_LOADER_RETRY_COUNT = getgenv().KAIKUN_LOADER_RETRY_COUNT or 0
 
 local function waitForGameLoaded()
     if not game:IsLoaded() then
         local done = false
         local conn
+
         conn = game.Loaded:Connect(function()
             done = true
             if conn then conn:Disconnect() end
         end)
+
         local start = os.clock()
         while not done and os.clock() - start < 30 do
             task.wait(0.1)
         end
+
         if conn then conn:Disconnect() end
     end
-    task.wait(1.5)
+
+    task.wait(2)
 end
 
 local function fetchScript(url)
     for attempt = 1, HTTP_RETRIES do
-        local ok, result = pcall(game.HttpGet, game, url)
+        local ok, result = pcall(function()
+            return game:HttpGet(url, true)
+        end)
+
         if ok and type(result) == "string" and #result > 1000
             and not result:find("<!DOCTYPE", 1, true)
             and not result:find("<html", 1, true)
             and not (result:match("^%s*{") and result:find('"error"', 1, true)) then
+
+            warn("[Kaikun] Fetch success, attempt:", attempt)
             return result
         end
+
+        warn("[Kaikun] Fetch retry:", attempt, "OK:", ok, "LEN:", type(result) == "string" and #result or "nil")
+
         if attempt < HTTP_RETRIES then
-            task.wait(RETRY_DELAY_SEC * attempt + math.random() * 0.8)
+            task.wait(RETRY_DELAY_SEC * attempt + math.random() * 1.2)
         end
     end
+
     return nil
 end
 
 local function run()
     waitForGameLoaded()
+
     local source = fetchScript(URL)
+
     if not source then
-        warn("[Kaikun] Fetch fail")
+        warn("[Kaikun] Fetch fail, retry later")
+
         getgenv().KAIKUN_LOADER_RUNNING = nil
+        getgenv().KAIKUN_LOADER_RETRY_COUNT += 1
+
+        if getgenv().KAIKUN_LOADER_RETRY_COUNT <= AUTO_RETRY_LIMIT then
+            task.delay(AUTO_RETRY_DELAY, function()
+                getgenv().KAIKUN_LOADER_RUNNING = nil
+                run()
+            end)
+        else
+            warn("[Kaikun] Auto retry limit reached")
+        end
+
         return
     end
-    local chunk = loadstring(source)
+
+    local chunk, loadErr = loadstring(source)
+
     if type(chunk) ~= "function" then
-        warn("[Kaikun] loadstring fail")
+        warn("[Kaikun] loadstring fail:", loadErr)
+
         getgenv().KAIKUN_LOADER_RUNNING = nil
         return
     end
-    local ok = pcall(chunk)
+
+    local ok, err = pcall(chunk)
+
     if ok then
         getgenv().KAIKUN_LOADER_LOADED = true
+        getgenv().KAIKUN_LOADER_RETRY_COUNT = 0
+        warn("[Kaikun] Loaded successfully")
+    else
+        warn("[Kaikun] Chunk error:", err)
+
+        getgenv().KAIKUN_LOADER_RUNNING = nil
+        getgenv().KAIKUN_LOADER_RETRY_COUNT += 1
+
+        if getgenv().KAIKUN_LOADER_RETRY_COUNT <= AUTO_RETRY_LIMIT then
+            task.delay(AUTO_RETRY_DELAY, function()
+                getgenv().KAIKUN_LOADER_RUNNING = nil
+                run()
+            end)
+        end
+
+        return
     end
+
     getgenv().KAIKUN_LOADER_RUNNING = nil
 end
 
-pcall(run)
+local ok, err = pcall(run)
+
+if not ok then
+    warn("[Kaikun] Loader fatal error:", err)
+end
+
 getgenv().KAIKUN_LOADER_RUNNING = nil
