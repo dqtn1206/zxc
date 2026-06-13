@@ -26,7 +26,7 @@ local GAME_ROUTES = {
         Name = "Noob Tower Defense",
         Script = "https://api.luarmor.net/files/v4/loaders/011bbebb93f439237d9ddaeb5fe6a330.lua",
     },
-    [97598239454123] = {
+    [10200395747] = {
         Name = "Grow a Garden-2",
         Script = "https://api.luarmor.net/files/v4/loaders/e72a2ba87aa3dcbfe7477845070595a8.lua",
     },
