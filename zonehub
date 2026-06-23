@@ -30,7 +30,7 @@ local GAME_ROUTES = {
         Name = "Grow a Garden-2",
         Script = "https://api.luarmor.net/files/v4/loaders/e72a2ba87aa3dcbfe7477845070595a8.lua",
     },
-    [5207621753 ] = {
+    [5207621753] = {
         Name = "Skibidi Masters Tower Defense",
         Script = "https://api.luarmor.net/files/v4/loaders/c138552c1ec4748d390c746c4dfbe71d.lua",
     },
