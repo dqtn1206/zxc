@@ -20,7 +20,7 @@ local GAME_ROUTES = {
     },
     [5429450445] = {
         Name = "Siren Head Legacy",
-        Script = "https://api.luarmor.net/files/v4/loaders/9f6c4915e3a8f70f37846514735f7701.lua",
+        Script = "https://api.luarmor.net/files/v4/loaders/bff2e52b1356317c89b8ab4f43db80b2.lua",
     },
     [10016841656] = {
         Name = "Noob Tower Defense",
