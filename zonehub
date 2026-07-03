@@ -34,6 +34,10 @@ local GAME_ROUTES = {
         Name = "Skibidi Masters Tower Defense",
         Script = "https://api.luarmor.net/files/v4/loaders/c138552c1ec4748d390c746c4dfbe71d.lua",
     },
+    [9826885587] = {
+        Name = "Evomon",
+        Script = "https://api.luarmor.net/files/v4/loaders/2b9bae607e43eb215036f0cdd59121e8.lua",
+    },
 }
 
 local PLACE_ROUTES = {}
