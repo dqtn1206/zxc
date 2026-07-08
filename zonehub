@@ -1,6 +1,6 @@
 if getgenv().ZONEHUB_LOADER_RUNNING == true then
     local startedAt = getgenv().ZONEHUB_LOADER_STARTED_AT or 0
-    if os.time() - startedAt < 30 then return end
+    if os.time() - startedAt < 60 then return end
 end
 
 getgenv().ZONEHUB_LOADER_RUNNING = true
@@ -8,6 +8,18 @@ getgenv().ZONEHUB_LOADER_STARTED_AT = os.time()
 
 local HTTP_RETRIES = 5
 local RETRY_DELAY_SEC = 2.0
+
+-- HTTP getter with fallback: some executors block game:HttpGet -> use a request-style fn if present.
+local _req = (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request) or http_request or request
+local function httpGet(url)
+    local ok, res = pcall(game.HttpGet, game, url)
+    if ok and type(res) == "string" then return res end
+    if _req then
+        local ok2, resp = pcall(_req, { Url = url, Method = "GET" })
+        if ok2 and type(resp) == "table" and type(resp.Body) == "string" then return resp.Body end
+    end
+    return nil
+end
 
 local GAME_ROUTES = {
     [7703614594] = {
@@ -41,15 +53,16 @@ local GAME_ROUTES = {
 }
 
 local PLACE_ROUTES = {}
+
 local function fetchParallel(urls)
     local results = table.create(#urls)
     local done = 0
 
-    for i, url in urls do
+    for i, url in ipairs(urls) do
         task.spawn(function()
             for attempt = 1, HTTP_RETRIES do
-                local ok, result = pcall(game.HttpGet, game, url)
-                if ok and type(result) == "string" and #result > 50
+                local result = httpGet(url)
+                if type(result) == "string" and #result > 50
                     and not result:find("<!DOCTYPE", 1, true)
                     and not result:find("<html", 1, true)
                     and not (result:match("^%s*{") and result:find('"error"', 1, true)) then
