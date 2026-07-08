@@ -9,7 +9,6 @@ getgenv().ZONEHUB_LOADER_STARTED_AT = os.time()
 local HTTP_RETRIES = 5
 local RETRY_DELAY_SEC = 2.0
 
--- HTTP getter with fallback: some executors block game:HttpGet -> use a request-style fn if present.
 local _req = (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request) or http_request or request
 local function httpGet(url)
     local ok, res = pcall(game.HttpGet, game, url)
