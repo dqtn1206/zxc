@@ -1,3 +1,7 @@
+local getgenv = getgenv or getrenv or function() return _G end
+
+if getgenv().ZONEHUB_LOADER_LOADED == true then return end
+
 if getgenv().ZONEHUB_LOADER_RUNNING == true then
     local startedAt = getgenv().ZONEHUB_LOADER_STARTED_AT or 0
     if os.time() - startedAt < 60 then return end
