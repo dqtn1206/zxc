@@ -53,6 +53,10 @@ local GAME_ROUTES = {
         Name = "Evomon",
         Script = "https://api.luarmor.net/files/v4/loaders/2b9bae607e43eb215036f0cdd59121e8.lua",
     },
+    [84515722934860] = {
+        Name = "Anime Expeditions",
+        Script = "https://api.luarmor.net/files/v4/loaders/dd705008b2fcc7a4c1d227079b2657bd.lua",
+    },
 }
 
 local PLACE_ROUTES = {}
